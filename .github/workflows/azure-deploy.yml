@@ -84,12 +84,12 @@ jobs:
         name: portfolio-backend-binary
 
     - name: Setup SSH key
-      uses: webfactory/ssh-agent@v0.9.0
-      with:
-        ssh-private-key: ${{ secrets.VM_SSH_PRIVATE_KEY }}
-    
-    - name: Add known hosts
       run: |
+        mkdir -p ~/.ssh
+        echo "${{ secrets.VM_SSH_PRIVATE_KEY }}" | tr -d '\r' > ~/.ssh/id_rsa
+        chmod 600 ~/.ssh/id_rsa
+        eval "$(ssh-agent -s)"
+        ssh-add ~/.ssh/id_rsa
         ssh-keyscan -H ${{ env.VM_HOST }} >> ~/.ssh/known_hosts
 
     - name: Create deployment directory on VM
@@ -164,4 +164,8 @@ jobs:
       run: |
         sleep 10
         curl -f http://${{ env.VM_HOST }}:8080/v1/health || exit 1
+
+    - name: Cleanup SSH key
+      run: rm -f ~/.ssh/id_rsa
+      if: always()
 
