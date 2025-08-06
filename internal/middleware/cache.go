@@ -89,7 +89,7 @@ func (w *etagResponseWriter) WriteHeader(statusCode int) {
 	
 	w.ResponseWriter.WriteHeader(statusCode)
 	if len(w.body) > 0 {
-		w.ResponseWriter.Write(w.body)
+		_, _ = w.ResponseWriter.Write(w.body)
 	}
 }
 
