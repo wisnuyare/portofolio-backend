@@ -103,16 +103,17 @@ jobs:
 
     - name: Create deployment directory on VM
       run: |
-        ssh -o StrictHostKeyChecking=no ${{ env.VM_USERNAME }}@${{ env.VM_HOST }} "mkdir -p ${{ env.DEPLOY_PATH }}/{bin,migrations,logs}"
+        ssh -o StrictHostKeyChecking=no ${{ env.VM_USERNAME }}@${{ env.VM_HOST }} "mkdir -p ${{ env.DEPLOY_PATH }}/{bin,logs}"
 
     - name: Upload application binary
       run: |
         scp -o StrictHostKeyChecking=no ${{ env.APP_NAME }} ${{ env.VM_USERNAME }}@${{ env.VM_HOST }}:${{ env.DEPLOY_PATH }}/bin/
         ssh -o StrictHostKeyChecking=no ${{ env.VM_USERNAME }}@${{ env.VM_HOST }} "chmod +x ${{ env.DEPLOY_PATH }}/bin/${{ env.APP_NAME }}"
 
-    - name: Upload migration files
-      run: |
-        scp -o StrictHostKeyChecking=no -r migrations/* ${{ env.VM_USERNAME }}@${{ env.VM_HOST }}:${{ env.DEPLOY_PATH }}/migrations/
+    # Migration files upload - DISABLED (database already exists)
+    # - name: Upload migration files
+    #   run: |
+    #     scp -o StrictHostKeyChecking=no -r migrations/* ${{ env.VM_USERNAME }}@${{ env.VM_HOST }}:${{ env.DEPLOY_PATH }}/migrations/
 
     - name: Upload systemd service file
       run: |
@@ -140,20 +141,21 @@ jobs:
         echo "CORS_ALLOWED_HEADERS=Content-Type,Authorization" >> .env.prod
         scp -o StrictHostKeyChecking=no .env.prod ${{ env.VM_USERNAME }}@${{ env.VM_HOST }}:${{ env.DEPLOY_PATH }}/.env
 
-    - name: Run database migrations
-      run: |
-        ssh -o StrictHostKeyChecking=no ${{ env.VM_USERNAME }}@${{ env.VM_HOST }} << 'EOF'
-          # Install migrate tool if not exists
-          if ! command -v migrate &> /dev/null; then
-            curl -L https://github.com/golang-migrate/migrate/releases/download/v4.17.0/migrate.linux-amd64.tar.gz | tar xvz
-            sudo mv migrate /usr/local/bin/
-          fi
-          
-          # Run migrations
-          cd ${{ env.DEPLOY_PATH }}
-          source .env
-          migrate -path ./migrations -database "mysql://${DB_USER}:${DB_PASSWORD}@tcp(${DB_HOST}:${DB_PORT})/${DB_NAME}" up
-        EOF
+    # Database migrations - DISABLED (database schema already imported via MySQL Workbench)
+    # - name: Run database migrations
+    #   run: |
+    #     ssh -o StrictHostKeyChecking=no ${{ env.VM_USERNAME }}@${{ env.VM_HOST }} << 'EOF'
+    #       # Install migrate tool if not exists
+    #       if ! command -v migrate &> /dev/null; then
+    #         curl -L https://github.com/golang-migrate/migrate/releases/download/v4.17.0/migrate.linux-amd64.tar.gz | tar xvz
+    #         sudo mv migrate /usr/local/bin/
+    #       fi
+    #       
+    #       # Run migrations
+    #       cd ${{ env.DEPLOY_PATH }}
+    #       source .env
+    #       migrate -path ./migrations -database "mysql://${DB_USER}:${DB_PASSWORD}@tcp(${DB_HOST}:${DB_PORT})/${DB_NAME}" up
+    #     EOF
 
     - name: Start/Restart application service
       run: |
