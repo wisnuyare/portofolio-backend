@@ -8,7 +8,9 @@
       "Bash(go mod:*)",
       "Bash(chmod:*)",
       "Bash(go install:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)"
     ],
     "deny": []
   }
