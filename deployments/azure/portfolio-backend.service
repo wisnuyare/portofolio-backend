@@ -1,0 +1,25 @@
+[Unit]
+Description=Portfolio Backend API
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=$VM_USERNAME
+Group=$VM_USERNAME
+WorkingDirectory=/home/$VM_USERNAME/apps/portfolio-backend
+EnvironmentFile=/home/$VM_USERNAME/apps/portfolio-backend/.env
+ExecStart=/home/$VM_USERNAME/apps/portfolio-backend/bin/portfolio-backend
+Restart=always
+RestartSec=5
+StandardOutput=append:/home/$VM_USERNAME/apps/portfolio-backend/logs/app.out.log
+StandardError=append:/home/$VM_USERNAME/apps/portfolio-backend/logs/app.err.log
+
+# Security settings
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ReadWritePaths=/home/$VM_USERNAME/apps/portfolio-backend/logs
+
+[Install]
+WantedBy=multi-user.target

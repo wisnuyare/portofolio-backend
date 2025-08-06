@@ -88,14 +88,14 @@ func setDefaults() {
 	viper.SetDefault("database.host", "localhost")
 	viper.SetDefault("database.port", 3306)
 	viper.SetDefault("database.user", "root")
-	viper.SetDefault("database.password", "B3lumM4nd!")
+	viper.SetDefault("database.password", "")
 	viper.SetDefault("database.database", "portfolio_db")
 	viper.SetDefault("database.max_open_conns", 25)
 	viper.SetDefault("database.max_idle_conns", 5)
 	viper.SetDefault("database.conn_max_lifetime", "5m")
 
 	// CORS defaults (secure - no wildcard)
-	viper.SetDefault("cors.allowed_origins", []string{"http://localhost:3000"})
+	viper.SetDefault("cors.allowed_origins", []string{"http://localhost:3000", "http://localhost:5173"})
 	viper.SetDefault("cors.allowed_methods", []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"})
 	viper.SetDefault("cors.allowed_headers", []string{"Content-Type", "Authorization"})
 

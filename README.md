@@ -68,6 +68,39 @@ portfolio-backend/
 - `GET /v1/skills` - Get skills (supports `?group_by=category`)
 - `GET /v1/education` - Get education history
 - `GET /v1/certifications` - Get certifications
+- `GET /v1/projects` - Get all projects
+
+### Testing with cURL
+
+**Get Profile:**
+```bash
+curl -X GET http://localhost:8080/v1/profile \
+  -H "Content-Type: application/json"
+```
+
+**Get Experience:**
+```bash
+curl -X GET http://localhost:8080/v1/experience \
+  -H "Content-Type: application/json"
+```
+
+**Get Skills:**
+```bash
+curl -X GET http://localhost:8080/v1/skills \
+  -H "Content-Type: application/json"
+```
+
+**Get Projects:**
+```bash
+curl -X GET http://localhost:8080/v1/projects \
+  -H "Content-Type: application/json"
+```
+
+**Health Check:**
+```bash
+curl -X GET http://localhost:8080/v1/health \
+  -H "Content-Type: application/json"
+```
 
 ## 🚀 Quick Start
 
@@ -118,6 +151,18 @@ portfolio-backend/
    ```
 
    The API will be available at `http://localhost:8080`
+
+   **Note:** If port 8080 is already in use, you can run on a different port:
+   ```bash
+   # Windows PowerShell
+   $env:PORT="8081"; go run cmd/api/main.go
+   
+   # Windows CMD
+   set PORT=8081 && go run cmd/api/main.go
+   
+   # Linux/Mac
+   PORT=8081 go run cmd/api/main.go
+   ```
 
 ### Docker Development
 

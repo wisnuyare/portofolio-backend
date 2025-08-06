@@ -1,0 +1,168 @@
+name: Deploy to Azure VM
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+env:
+  VM_HOST: ${{ secrets.VM_HOST }}
+  VM_USERNAME: ${{ secrets.VM_USERNAME }}
+  APP_NAME: portfolio-backend
+  DEPLOY_PATH: /home/${{ secrets.VM_USERNAME }}/apps/portfolio-backend
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.23'
+
+    - name: Cache Go modules
+      uses: actions/cache@v4
+      with:
+        path: ~/go/pkg/mod
+        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-
+
+    - name: Download dependencies
+      run: go mod download
+
+    - name: Run tests
+      run: go test -v ./...
+
+    - name: Run linting
+      uses: golangci/golangci-lint-action@v6
+      with:
+        version: latest
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.23'
+
+    - name: Build binary
+      run: |
+        CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o ${{ env.APP_NAME }} cmd/api/main.go
+
+    - name: Upload binary artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: portfolio-backend-binary
+        path: ${{ env.APP_NAME }}
+        retention-days: 1
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Download binary artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: portfolio-backend-binary
+
+    - name: Setup SSH key
+      run: |
+        mkdir -p ~/.ssh
+        echo "${{ secrets.VM_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+        chmod 600 ~/.ssh/id_rsa
+        ssh-keyscan -H ${{ env.VM_HOST }} >> ~/.ssh/known_hosts
+
+    - name: Create deployment directory on VM
+      run: |
+        ssh ${{ env.VM_USERNAME }}@${{ env.VM_HOST }} "mkdir -p ${{ env.DEPLOY_PATH }}/{bin,migrations,logs}"
+
+    - name: Upload application binary
+      run: |
+        scp ${{ env.APP_NAME }} ${{ env.VM_USERNAME }}@${{ env.VM_HOST }}:${{ env.DEPLOY_PATH }}/bin/
+        ssh ${{ env.VM_USERNAME }}@${{ env.VM_HOST }} "chmod +x ${{ env.DEPLOY_PATH }}/bin/${{ env.APP_NAME }}"
+
+    - name: Upload migration files
+      run: |
+        scp -r migrations/* ${{ env.VM_USERNAME }}@${{ env.VM_HOST }}:${{ env.DEPLOY_PATH }}/migrations/
+
+    - name: Upload systemd service file
+      run: |
+        # Substitute variables in service file
+        sed "s/\$VM_USERNAME/${{ env.VM_USERNAME }}/g" deployments/azure/portfolio-backend.service > portfolio-backend.service.tmp
+        scp portfolio-backend.service.tmp ${{ env.VM_USERNAME }}@${{ env.VM_HOST }}:/tmp/portfolio-backend.service
+        ssh ${{ env.VM_USERNAME }}@${{ env.VM_HOST }} "sudo mv /tmp/portfolio-backend.service /etc/systemd/system/"
+
+    - name: Upload environment file
+      run: |
+        echo "HOST=0.0.0.0" > .env.prod
+        echo "PORT=8080" >> .env.prod
+        echo "DB_HOST=${{ secrets.DB_HOST }}" >> .env.prod
+        echo "DB_PORT=${{ secrets.DB_PORT }}" >> .env.prod
+        echo "DB_USER=${{ secrets.DB_USER }}" >> .env.prod
+        echo "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" >> .env.prod
+        echo "DB_NAME=${{ secrets.DB_NAME }}" >> .env.prod
+        echo "DB_MAX_OPEN_CONNS=25" >> .env.prod
+        echo "DB_MAX_IDLE_CONNS=5" >> .env.prod
+        echo "DB_CONN_MAX_LIFETIME=5m" >> .env.prod
+        echo "LOG_LEVEL=info" >> .env.prod
+        echo "LOG_FORMAT=json" >> .env.prod
+        echo "CORS_ALLOWED_ORIGINS=${{ secrets.CORS_ALLOWED_ORIGINS }}" >> .env.prod
+        echo "CORS_ALLOWED_METHODS=GET,POST,PUT,DELETE,OPTIONS" >> .env.prod
+        echo "CORS_ALLOWED_HEADERS=Content-Type,Authorization" >> .env.prod
+        scp .env.prod ${{ env.VM_USERNAME }}@${{ env.VM_HOST }}:${{ env.DEPLOY_PATH }}/.env
+
+    - name: Run database migrations
+      run: |
+        ssh ${{ env.VM_USERNAME }}@${{ env.VM_HOST }} << 'EOF'
+          # Install migrate tool if not exists
+          if ! command -v migrate &> /dev/null; then
+            curl -L https://github.com/golang-migrate/migrate/releases/download/v4.17.0/migrate.linux-amd64.tar.gz | tar xvz
+            sudo mv migrate /usr/local/bin/
+          fi
+          
+          # Run migrations
+          cd ${{ env.DEPLOY_PATH }}
+          source .env
+          migrate -path ./migrations -database "mysql://${DB_USER}:${DB_PASSWORD}@tcp(${DB_HOST}:${DB_PORT})/${DB_NAME}" up
+        EOF
+
+    - name: Start/Restart application service
+      run: |
+        ssh ${{ env.VM_USERNAME }}@${{ env.VM_HOST }} << 'EOF'
+          sudo systemctl daemon-reload
+          sudo systemctl enable portfolio-backend
+          sudo systemctl restart portfolio-backend
+          
+          # Wait for service to start
+          sleep 5
+          
+          # Check service status
+          sudo systemctl status portfolio-backend --no-pager
+        EOF
+
+    - name: Health check
+      run: |
+        sleep 10
+        curl -f http://${{ env.VM_HOST }}:8080/v1/health || exit 1
+
+    - name: Cleanup SSH key
+      run: rm -f ~/.ssh/id_rsa
+      if: always()
