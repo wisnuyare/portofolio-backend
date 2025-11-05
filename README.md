@@ -364,25 +364,6 @@ make deploy        # Deploy to GCP
 }
 ```
 
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🆘 Support
-
-For questions or support:
-1. Check the [documentation](docs/)
-2. Review existing [issues](../../issues)
-3. Create a new issue for bugs or feature requests
-
 ---
 
 **Built with ❤️ using Go and following clean architecture principles**# Deployment trigger Wed, Aug  6, 2025  5:44:22 PM
