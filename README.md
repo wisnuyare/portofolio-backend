@@ -1,6 +1,6 @@
 # Portfolio Backend API
 
-A production-ready Go REST API backend for a portfolio website, built with clean architecture principles and raw SQL (NO ORM) as specified in the requirements.
+A production-ready Go REST API backend for a portfolio website, built with clean architecture principles and raw SQL.
 
 ## 🚀 Features
 
